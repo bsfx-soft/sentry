@@ -5,7 +5,8 @@ import {t} from 'app/locale';
 import FeedbackAlert from 'app/views/settings/account/notifications/feedbackAlert';
 import {ACCOUNT_NOTIFICATION_FIELDS} from 'app/views/settings/account/notifications/fields';
 import {NOTIFICATION_SETTING_FIELDS} from 'app/views/settings/account/notifications/fields2';
-import NotificationSettingsByParents from 'app/views/settings/account/notifications/notificationSettingsByParents';
+import NotificationSettingsByOrganization from 'app/views/settings/account/notifications/notificationSettingsByOrganization';
+import NotificationSettingsByProjects from 'app/views/settings/account/notifications/notificationSettingsByProjects';
 import {
   getCurrentDefault,
   getCurrentProviders,
@@ -186,11 +187,20 @@ class NotificationSettingsByType extends AsyncComponent<Props, State> {
             fields={this.getFields()}
           />
         </Form>
-        <NotificationSettingsByParents
-          notificationType={notificationType}
-          notificationSettings={notificationSettings}
-          onChange={this.getStateToPutForParent}
-        />
+        {!isEverythingDisabled(notificationType, notificationSettings) &&
+        isGroupedByProject(notificationType) ? (
+          <NotificationSettingsByProjects
+            notificationType={notificationType}
+            notificationSettings={notificationSettings}
+            onChange={this.getStateToPutForParent}
+          />
+        ) : (
+          <NotificationSettingsByOrganization
+            notificationType={notificationType}
+            notificationSettings={notificationSettings}
+            onChange={this.getStateToPutForParent}
+          />
+        )}
       </React.Fragment>
     );
   }

@@ -1,16 +1,19 @@
+import React from 'react';
+import styled from '@emotion/styled';
 import set from 'lodash/set';
 
+import Avatar from 'app/components/avatar';
+import {t} from 'app/locale';
+import space from 'app/styles/space';
 import {OrganizationSummary, Project} from 'app/types';
-
-const ALL_PROVIDERS = {
-  email: 'default',
-  slack: 'never',
-};
-
-export type NotificationSettingsByProviderObject = {[key: string]: string};
-export type NotificationSettingsObject = {
-  [key: string]: {[key: string]: {[key: string]: NotificationSettingsByProviderObject}};
-};
+import {
+  ALL_PROVIDERS,
+  NotificationSettingsByProviderObject,
+  NotificationSettingsObject,
+  VALUE_MAPPING,
+} from 'app/views/settings/account/notifications/constants';
+import {NOTIFICATION_SETTING_FIELDS} from 'app/views/settings/account/notifications/fields2';
+import {FieldObject} from 'app/views/settings/components/forms/type';
 
 // Which fine tuning parts are grouped by project
 export const isGroupedByProject = (notificationType: string): boolean =>
@@ -171,15 +174,8 @@ export const decideDefault = (
    * "never". If so, the API is telling us that the user has opted out of
    * all notifications.
    */
-  // These values are stolen from the DB.
-  const mapping = {
-    default: 0,
-    never: 10,
-    always: 20,
-    subscribe_only: 30,
-    committed_only: 40,
-  };
-  const compare = (a: string, b: string): number => mapping[a] - mapping[b];
+
+  const compare = (a: string, b: string): number => VALUE_MAPPING[a] - VALUE_MAPPING[b];
 
   const parentIndependentSetting =
     Object.values(getUserDefaultValues(notificationType, notificationSettings))
@@ -227,6 +223,36 @@ export const getParentIds = (
    */
   return Object.keys(
     notificationSettings[notificationType]?.[getParentKey(notificationType)] || {}
+  );
+};
+
+export const getParentValues = (
+  notificationType: string,
+  notificationSettings: NotificationSettingsObject,
+  parentId: string
+): NotificationSettingsByProviderObject => {
+  return (
+    notificationSettings[notificationType]?.[getParentKey(notificationType)]?.[
+      parentId
+    ] || {
+      email: 'default',
+    }
+  );
+};
+
+export const getParentData = (
+  notificationType: string,
+  notificationSettings: NotificationSettingsObject
+): NotificationSettingsByProviderObject => {
+  /** Get a mapping of all parent IDs to the notification setting for the current providers. */
+  const provider = getCurrentProviders(notificationType, notificationSettings)[0];
+
+  // TODO MARCOS FIRST
+  return Object.fromEntries(
+    this.getParents().map(parent => [
+      parent.id,
+      this.getParentValues(parent.id)[provider],
+    ])
   );
 };
 
@@ -340,3 +366,49 @@ export const getStateToPutForParent = (
     },
   };
 };
+
+export const getParentField = (
+  notificationType: string,
+  notificationSettings: NotificationSettingsObject,
+  parent: OrganizationSummary | Project,
+  onChange: (
+    changedData: NotificationSettingsByProviderObject,
+    parentId: string
+  ) => NotificationSettingsObject
+): FieldObject => {
+  /** Render each parent and add a default option to the the field choices. */
+
+  const defaultFields = NOTIFICATION_SETTING_FIELDS[notificationType];
+
+  return Object.assign({}, defaultFields, {
+    label: (
+      <FieldLabel>
+        <Avatar
+          {...{
+            [isGroupedByProject(notificationType) ? 'project' : 'organization']: parent,
+          }}
+        />
+        <span>{parent.slug}</span>
+      </FieldLabel>
+    ),
+    getData: data => onChange(data, parent.id),
+    name: parent.id,
+    choices: defaultFields.choices?.concat([
+      [
+        'default',
+        `${t('Default')} (${getChoiceString(
+          defaultFields.choices,
+          getCurrentDefault(notificationType, notificationSettings)
+        )})`,
+      ],
+    ]),
+    defaultValue: 'default',
+    help: undefined,
+  }) as any;
+};
+
+const FieldLabel = styled('div')`
+  display: flex;
+  gap: ${space(0.5)};
+  line-height: 16px;
+`;
